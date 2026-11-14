@@ -1,0 +1,85 @@
+name: CI - Mini-CRM Fullstack
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  # 1. Validación de compilación y tipos en Backend
+  backend-ci:
+    name: Build Backend (TypeScript)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    steps:
+      - name: Descargar código del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: './backend/package-lock.json'
+
+      - name: Instalar dependencias exactas
+        run: npm ci
+
+      - name: Compilar TypeScript (tsc)
+        run: npm run build
+
+  # 2. Validación de compilación y tipos en Frontend
+  frontend-ci:
+    name: Build Frontend (React + Vite)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+    steps:
+      - name: Descargar código del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: './frontend/package-lock.json'
+
+      - name: Instalar dependencias exactas
+        run: npm ci
+
+      - name: Compilar proyecto (tsc + Vite)
+        run: npm run build
+
+  # 3. Construcción de contenedores y prueba de integración (Smoke Test)
+  docker-e2e-test:
+    name: Docker Compose & Smoke Test
+    runs-on: ubuntu-latest
+    needs: [backend-ci, frontend-ci]
+    steps:
+      - name: Descargar código del repositorio
+        uses: actions/checkout@v4
+
+      - name: Construir imágenes y levantar servicios
+        run: docker compose up --build -d
+
+      - name: Verificar flujo completo (Nginx -> Backend -> PostgreSQL)
+        run: |
+          for i in {1..15}; do
+            if curl -fsS http://localhost:8080/api/clients | grep -q "Pedro Madero"; then
+              echo "Prueba exitosa: Frontend, Nginx, Backend y PostgreSQL comunicados."
+              exit 0
+            fi
+            echo "Esperando a que los servicios terminen de iniciar ($i/15)..."
+            sleep 2
+          done
+          docker compose logs
+          exit 1
+
+      - name: Limpiar contenedores y volúmenes
+        if: always()
+        run: docker compose down -v
