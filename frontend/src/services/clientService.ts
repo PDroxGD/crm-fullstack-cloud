@@ -28,3 +28,26 @@ export async function createNewClient(payload: CreateClientDTO): Promise<Client>
 
   return result.data;
 }
+
+export async function updateClient(id: number, data: CreateClientDTO): Promise<Client> {
+  const response = await fetch(`/api/clients/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !result.success) {
+    throw new Error(result.message || 'No se pudo actualizar el cliente');
+  }
+  return result.data;
+}
+
+export async function deleteClient(id: number): Promise<void> {
+  const response = await fetch(`${API_URL}/clients/${id}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.message || 'Error al eliminar cliente');
+  }
+}

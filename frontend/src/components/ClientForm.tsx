@@ -1,29 +1,63 @@
-import { useState } from 'react';
-import type { ClientSegment, CreateClientDTO } from '../types/client.types';
+import { useEffect, useState } from 'react';
+import type { Client, ClientSegment, CreateClientDTO } from '../types/client.types';
 
 interface ClientFormProps {
   onSubmitClient: (data: CreateClientDTO) => Promise<void>;
   isSubmitting: boolean;
+  editingClient?: Client | null;
+  onCancelEdit?: () => void;
 }
 
-export function ClientForm({ onSubmitClient, isSubmitting }: ClientFormProps) {
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+export function ClientForm({
+  onSubmitClient,
+  isSubmitting,
+  editingClient,
+  onCancelEdit,
+}: ClientFormProps) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [segment, setSegment] = useState<ClientSegment>('Standard');
+  const [emailError, setEmailError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setEmailError(null);
+    if (editingClient) {
+      setName(editingClient.name);
+      setEmail(editingClient.email);
+      setSegment(editingClient.segment);
+    } else {
+      setName('');
+      setEmail('');
+      setSegment('Standard');
+    }
+  }, [editingClient]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!name.trim() || !email.trim()) return;
+    const trimmedEmail = email.trim();
 
-    await onSubmitClient({ name, email, segment });
-    setName('');
-    setEmail('');
-    setSegment('Standard');
+    if (!name.trim() || !trimmedEmail) return;
+
+    if (!EMAIL_REGEX.test(trimmedEmail)) {
+      setEmailError('Ingresa un correo con extensión válida (ej. ana@empresa.com o .es)');
+      return;
+    }
+
+    setEmailError(null);
+    await onSubmitClient({ name: name.trim(), email: trimmedEmail, segment });
+
+    if (!editingClient) {
+      setName('');
+      setEmail('');
+      setSegment('Standard');
+    }
   };
 
   return (
-    <form className="card form-grid" onSubmit={handleSubmit}>
-      <h2>Registrar Nuevo Cliente</h2>
+    <form className="card form-grid" onSubmit={handleSubmit} noValidate>
+      <h2>{editingClient ? 'Editar Cliente' : 'Registrar Nuevo Cliente'}</h2>
 
       <div className="field">
         <label htmlFor="name">Nombre completo</label>
@@ -44,9 +78,17 @@ export function ClientForm({ onSubmitClient, isSubmitting }: ClientFormProps) {
           type="email"
           placeholder="ana@empresa.com"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            if (emailError) setEmailError(null);
+          }}
           required
         />
+        {emailError && (
+          <small style={{ color: '#dc2626', fontSize: '0.82rem', marginTop: '4px' }}>
+            {emailError}
+          </small>
+        )}
       </div>
 
       <div className="field">
@@ -62,9 +104,25 @@ export function ClientForm({ onSubmitClient, isSubmitting }: ClientFormProps) {
         </select>
       </div>
 
-      <button type="submit" disabled={isSubmitting}>
-        {isSubmitting ? 'Guardando...' : 'Agregar Cliente'}
-      </button>
+      <div style={{ display: 'flex', gap: '8px' }}>
+        <button type="submit" disabled={isSubmitting}>
+          {isSubmitting
+            ? 'Guardando...'
+            : editingClient
+              ? 'Guardar Cambios'
+              : 'Agregar Cliente'}
+        </button>
+
+        {editingClient && onCancelEdit && (
+          <button
+            type="button"
+            onClick={onCancelEdit}
+            disabled={isSubmitting}
+          >
+            Cancelar
+          </button>
+        )}
+      </div>
     </form>
   );
 }

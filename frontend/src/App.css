@@ -123,3 +123,13 @@ button:disabled {
   margin-bottom: 1rem;
   border: 1px solid #fca5a5;
 }
+
+.alert-success {
+  background-color: #dcfce7;
+  color: #166534;
+  border: 1px solid #86efac;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-weight: 500;
+}
